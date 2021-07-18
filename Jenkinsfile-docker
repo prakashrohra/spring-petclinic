@@ -1,0 +1,72 @@
+pipeline {
+    agent any
+    tools {maven 'Maven-3'}
+
+    stages {
+        
+        stage('Git-Checkout') {
+            steps {
+                echo 'Checking Out from GIT....'
+                git branch: 'main', url: 'https://github.com/prakashrohra/spring-petclinic'
+            }
+        }
+
+
+        stage('Package') {
+            steps {
+                echo 'Packcging...'
+                bat 'mvn package'
+                
+            }
+        }
+        
+        
+        stage('Build Docker image') {
+            steps {
+                echo 'Building docker image...'
+                bat 'docker build -f Dockerfile -t prohra/spring-petclinic:2.4.5 .'
+            }
+        }
+        
+        stage('PUSH Docker image to Docker Hub') {
+            steps {
+                echo 'Logging into Docker Hub...'
+                withCredentials([string(credentialsId: 'dockerHubPwd', variable: 'dockerHubPwd')]) {
+                     bat "docker login -u prohra -p ${dockerHubPwd}"
+                }
+
+                echo 'Pushing docker image...'
+                bat 'docker push prohra/spring-petclinic:2.4.5'
+            }
+		}
+            
+        stage('Run Docker image') {
+            steps {
+                echo 'Running docker image...'
+                bat 'docker run -p 8080:8080 --name spring-pet-clinic prohra/spring-petclinic:2.4.5'
+            }
+        }
+        
+        
+    }
+    
+    post {
+        
+        always {
+            echo 'This will always run'
+        }
+        success {
+            echo ' Run only if Suucessfull'
+        }
+        failure{
+            echo ' Failed..'
+        }
+        unstable{
+            echo ' run was marked as unstable'
+        }
+        changed{
+            echo 'state of the run has changed'
+        }
+    }
+    
+}
